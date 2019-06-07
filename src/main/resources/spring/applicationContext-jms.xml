@@ -1,0 +1,89 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-4.0.xsd 
+		http://www.springframework.org/schema/mvc 
+		http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd 
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context-4.0.xsd 
+		http://www.springframework.org/schema/aop 
+		http://www.springframework.org/schema/aop/spring-aop-4.0.xsd 
+		http://www.springframework.org/schema/tx 
+		http://www.springframework.org/schema/tx/spring-tx-4.0.xsd ">
+
+    <bean id="connectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory" destroy-method="stop">
+        <property name="connectionFactory">
+            <bean class="org.apache.activemq.ActiveMQConnectionFactory">
+                <property name="brokerURL">
+                    <value>failover:tcp://192.168.120.110:61616</value>
+                </property>
+                <!-- 设置 prefetchPolicy -->
+                <property name="prefetchPolicy" ref="prefetchPolicy" />
+                <!-- <property name="optimizeAcknowledge" value="true" />  -->
+                <!-- 用于异步发送的 -->
+                <property name="useAsyncSend" value="true" />
+
+            </bean>
+        </property>
+        <property name="maxConnections" value="50"/>
+    </bean>
+
+    <bean id="prefetchPolicy" class="org.apache.activemq.ActiveMQPrefetchPolicy">
+        <!-- 这里仅仅设置了queuePrefetch 的值的大小, 设置的目的: 均衡的分配消息给不同的 consumer -->
+        <property name="queuePrefetch" value="10" />
+    </bean>
+
+
+    <bean id="destination" class="org.apache.activemq.command.ActiveMQQueue">
+        <constructor-arg index="0" value="spring-queue"/>
+    </bean>
+
+    <bean id="destinationTopic" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg index="0" value="spring-topic"/>
+    </bean>
+
+    <bean id="jmsQueueTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <property name="defaultDestination" ref="destination"/>
+        <property name="messageConverter">
+            <bean class="org.springframework.jms.support.converter.SimpleMessageConverter"/>
+        </property>
+        <property name="pubSubDomain" value="false"/>
+    </bean>
+
+    <bean id="jmsTopicTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <property name="defaultDestination" ref="destinationTopic"/>
+        <property name="messageConverter">
+            <bean class="org.springframework.jms.support.converter.SimpleMessageConverter"/>
+        </property>
+        <!-- 开启订阅模式,想要达到持久性订阅的方式 请在 DefaultMessageListenerContainer 中去写,里面可配置参数 -->
+        <property name="pubSubDomain" value="true"/>
+        <property name="receiveTimeout" value="10000" />
+        <!-- deliveryMode, priority, timeToLive 的开关要生效，必须配置为true，默认false-->
+        <property name="explicitQosEnabled" value="true"/>
+        <!-- 数据是否持久化
+             DeliveryMode.NON_PERSISTENT=1:非持久 ;
+             DeliveryMode.PERSISTENT=2:持久
+        -->
+        <property name="deliveryMode" value="2"/>
+    </bean>
+
+
+    <!-- 以下是在分布式的时候,消费端监听器的配置 这里打开是为了测试, 这里是来监听queue的listener的测试 -->
+    <bean id="messageListener" class=" com.inspur.jms.spring_ptp.SpringQueueJMSReceiverListener"/>
+    <bean id="jmsQueueContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <property name="destination" ref="destination"/>
+        <property name="messageListener" ref="messageListener"/>
+        <!--    这种是监听 topic 的持久性订阅的配置方式,是持久性订阅
+            <property name="clientId" value="Client0001"/>
+            <property name="pubSubDomain" value="true" />
+            <property name="subscriptionDurable" value="true"/>
+         -->
+    </bean>
+
+
+</beans>
