@@ -26,13 +26,13 @@ import javax.jms.*;
 public class JMSReceiver {
 
     public static void main(String[] args) throws JMSException {
-
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("tcp://192.168.120.110:61616");
+        //采用容错机制 failover 配置
+        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("failover:(tcp://192.168.120.110:61616,tcp://192.168.120.150:61616,tcp://192.168.120.224:61616)");
         //创建链接,和broker 链接的
         Connection connection = connectionFactory.createConnection();
         connection.start();
 
-        Session session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+        Session session = connection.createSession(true, Session.AUTO_ACKNOWLEDGE);
 
         //创建队列目的地
         Destination destination = session.createQueue("first-queue");
@@ -45,7 +45,8 @@ public class JMSReceiver {
 //        while(true){
             TextMessage message = (TextMessage) consumer.receive();
             System.out.println("消费者消费信息:" + message.getText());
-            message.acknowledge();
+//            message.acknowledge();
+            session.commit();
 //        session.commit();
         }
 

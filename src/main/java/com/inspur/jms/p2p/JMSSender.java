@@ -13,7 +13,7 @@ public class JMSSender {
 
     //brokerURL : broker(启动的实例就是borker 经纪人的意思)
     public static void main(String[] args) throws JMSException {
-        ActiveMQConnectionFactory connectionFactory  = new ActiveMQConnectionFactory("tcp://192.168.120.110:61616");
+        ActiveMQConnectionFactory connectionFactory  = new ActiveMQConnectionFactory("failover:(tcp://192.168.120.110:61616,tcp://192.168.120.150:61616,tcp://192.168.120.224:61616)");
         //这是 异步发送 消息(并且消息是持久化消息的时候才配置,因为非持久化消息默认的就是异步发送的)
 //        connectionFactory.setUseAsyncSend(true);
         //创建链接,和broker 链接的
@@ -23,10 +23,11 @@ public class JMSSender {
         Session session = connection.createSession(true, Session.AUTO_ACKNOWLEDGE);
 
         //创建队列目的地
-        Destination destination = session.createQueue("first-queue?consumer.");
+        Destination destination = session.createQueue("first-queue");
 
         //创建发送者
         MessageProducer producer = session.createProducer(destination);
+        producer.setDeliveryMode(DeliveryMode.PERSISTENT);
 
         for(int i = 0; i < 10; i++){
             //创建消息
